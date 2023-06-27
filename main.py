@@ -3,7 +3,8 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import numpy as np
-
+import cv2
+from scipy.ndimage import gaussian_filter
 import deep_dream_utils
 import deep_dream_settings
 import utils
@@ -16,17 +17,9 @@ if __name__ == '__main__':
 
     DEVICE = utils.get_device()
 
-    t = transforms.Compose(
-        [
-            # It was never required to normalize the input image
-            # transforms.Normalize(NST_project_settings.IMAGE_MEANS, NST_project_settings.IMAGE_STDS),
-            #transforms.Resize(deep_dream_settings.INPUT_IMAGE_SIZE),
-        ]
-    )
-
     dd_image = get_image_tensor(deep_dream_settings.IMAGE_PATH,
                                 device=DEVICE,
-                                transform=t,
+                                transform=None,
                                 add_batch_dim=True)
 
     dd_model = Vgg16_truncated().to(DEVICE).eval()  # Keep the model in eval mode, since we are not training the model
@@ -37,15 +30,11 @@ if __name__ == '__main__':
     image_shape = np.array(dd_image.shape)[2:] # Remove batch and channel dim
     print(f'Image shape = {image_shape}')
 
-    OCTAVE_SCALE = 0.3
+    # Image size array -> scale the image linearly from 150 to 650
+    image_size_array = range(150,650,100)
+    for image_size in image_size_array:
 
-    i = 0
-    image_size_array = [1000, 900, 800, 700, 600, 500]
-
-    for n in range(-2, 3):
-
-        new_img_size = image_size_array[i] #(image_shape * (OCTAVE_SCALE**n)).astype(int).tolist()
-        i += 1
+        new_img_size = image_size
 
         print(f'size of img = {new_img_size}')
 
@@ -73,15 +62,22 @@ if __name__ == '__main__':
                 # Calculate gradients
                 total_loss.backward()
 
+                # Smoothen the gradients for smooth image quality
+                image_grads = target_image.grad.clone().cpu().numpy()
+                image_grads = image_grads.squeeze(0)
+                blurred_grads = gaussian_filter(image_grads, deep_dream_settings.GAUSSIAN_FILTER_SIGMA)
+                # Update the new gradients manually
+                target_image.grad = torch.tensor(blurred_grads).unsqueeze(0).to(DEVICE)
+
                 # Apply gradient descent once
+                # This step updates the output image
                 optimizer.step()
 
                 if epoch % 10 == 0:
                     print(f'Eopch = {epoch}  Loss = {total_loss.item()}')
                     save_image = target_image.detach().cpu()
                     torchvision.utils.save_image(save_image,
-                                                 deep_dream_settings.SAVED_IMAGE_DIR + 'op_image_' + str(
-                                                     epoch) + '.png')
+                                                 deep_dream_settings.SAVED_IMAGE_DIR + f'op_image_{image_size}_{epoch}.png')
 
             # If the user presses ctrl-c while optimization is running save the output
             except KeyboardInterrupt:

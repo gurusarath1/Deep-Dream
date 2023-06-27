@@ -57,7 +57,7 @@ class Vgg16_truncated(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        pre_trained_vgg16_model = vgg16(weights=VGG16_Weights)
+        pre_trained_vgg16_model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
 
         self.layer_set_names = ['conv3_64', 'conv3_128', 'conv3_256', 'conv3_512']
 
