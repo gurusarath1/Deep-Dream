@@ -9,10 +9,11 @@ import deep_dream_utils
 import deep_dream_settings
 import utils
 
-from deep_dream_models import Vgg16_truncated
+from deep_dream_models import Vgg16_truncated, Resnet50_truncated
 from deep_dream_utils import get_image_tensor, get_feature_loss, calc_variation_loss
 
-if __name__ == '__main__':
+
+def main():
     print('Deep Dream Started !')
 
     DEVICE = utils.get_device()
@@ -22,16 +23,21 @@ if __name__ == '__main__':
                                 transform=None,
                                 add_batch_dim=True)
 
-    dd_model = Vgg16_truncated().to(DEVICE).eval()  # Keep the model in eval mode, since we are not training the model
+    if deep_dream_settings.MODEL_NAME == 'vgg16':
+        dd_model = Vgg16_truncated()
+    elif deep_dream_settings.MODEL_NAME == 'resnet50':
+        dd_model = Resnet50_truncated()
+    # Keep the model in eval mode, since we are not training the model
     # We only need the feature maps from a trained model
+    dd_model = dd_model.to(DEVICE).eval()
 
     target_image = dd_image
 
-    image_shape = np.array(dd_image.shape)[2:] # Remove batch and channel dim
+    image_shape = np.array(dd_image.shape)[2:]  # Remove batch and channel dim
     print(f'Image shape = {image_shape}')
 
     # Image size array -> scale the image linearly from 150 to 650
-    image_size_array = range(150,650,100)
+    image_size_array = deep_dream_settings.INPUT_IMAGE_SIZE_LIST
     for image_size in image_size_array:
 
         new_img_size = image_size
@@ -56,18 +62,22 @@ if __name__ == '__main__':
                 target_image_feature_maps = dd_model(target_image)
 
                 # Total loss = weighted sum of all the losses
-                total_loss = -(deep_dream_settings.FEATURE_LOSS_WEIGHT * get_feature_loss(target_image_feature_maps)) + \
-                             (deep_dream_settings.VARIATION_LOSS_WEIGHT * calc_variation_loss(target_image))
+                total_loss = -(
+                        deep_dream_settings.FEATURE_LOSS_WEIGHT * get_feature_loss(target_image_feature_maps,
+                                                                                   deep_dream_settings.FEATURE_MAP_IDX_TO_MAXIMIZE)) + \
+                             (deep_dream_settings.VARIATION_LOSS_WEIGHT * calc_variation_loss(target_image)
+                              )
 
                 # Calculate gradients
                 total_loss.backward()
 
-                # Smoothen the gradients for smooth image quality
-                image_grads = target_image.grad.clone().cpu().numpy()
-                image_grads = image_grads.squeeze(0)
-                blurred_grads = gaussian_filter(image_grads, deep_dream_settings.GAUSSIAN_FILTER_SIGMA)
-                # Update the new gradients manually
-                target_image.grad = torch.tensor(blurred_grads).unsqueeze(0).to(DEVICE)
+                if deep_dream_settings.ENABLE_IMAGE_GRAD_SMOOTHENING:
+                    # Smoothen the gradients for smooth image quality
+                    image_grads = target_image.grad.clone().cpu().numpy()
+                    image_grads = image_grads.squeeze(0)
+                    blurred_grads = gaussian_filter(image_grads, deep_dream_settings.GAUSSIAN_FILTER_SIGMA)
+                    # Update the new gradients manually
+                    target_image.grad = torch.tensor(blurred_grads).unsqueeze(0).to(DEVICE)
 
                 # Apply gradient descent once
                 # This step updates the output image
@@ -84,3 +94,7 @@ if __name__ == '__main__':
                 save_image = target_image.detach().cpu()
                 torchvision.utils.save_image(save_image,
                                              deep_dream_settings.SAVED_IMAGE_DIR + 'op_image_' + str(epoch) + '.png')
+
+
+if __name__ == '__main__':
+    main()

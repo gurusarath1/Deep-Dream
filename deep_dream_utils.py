@@ -37,8 +37,13 @@ def display_image(tensor_image, batch_dim_exist=False, batch_dim_index=0, save_i
         plt.show()
 
 
-def get_feature_loss(features: list):
+def get_feature_loss(features: list, specific_feature_idx=None):
     loss = 0
+
+    if specific_feature_idx is not None:
+        loss = torch.mean(features[specific_feature_idx])
+        return loss
+
     for f in features:
         loss += torch.mean(f)
 
