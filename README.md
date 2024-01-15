@@ -15,4 +15,9 @@ Code based on https://blog.research.google/2015/06/inceptionism-going-deeper-int
 - [x] Give the input image path (```IMAGE_PATH```) and output image path (```SAVED_IMAGE_DIR```) in the ```deep_dream_settings.py``` file.
 - [x] Run ```main.py```
 
-## Sample Outputs?
+## Sample Outputs
+
+![output1](/saved_images/whale.png)
+![output1](/saved_images/buildins.png)
+![output1](/saved_images/actor.png)
+![output1](/saved_images/monalisa.png)
