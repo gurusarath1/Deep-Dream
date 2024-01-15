@@ -18,6 +18,6 @@ Code based on https://blog.research.google/2015/06/inceptionism-going-deeper-int
 ## Sample Outputs
 
 ![output1](/saved_images/whale.png) <br><br>
-![output1](/saved_images/buildins.png) <br>
-![output1](/saved_images/actor.png)<br>
-![output1](/saved_images/monalisa.png)<br>
+![output1](/saved_images/buildins.png) <br><br>
+![output1](/saved_images/actor.png) <br><br>
+![output1](/saved_images/monalisa.png) <br><br>
